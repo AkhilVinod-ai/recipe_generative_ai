@@ -1,35 +1,86 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, FormEvent } from "react";
+import { generateClient } from "aws-amplify/data";
+import type { Schema } from "../amplify/data/resource";
+import { Amplify } from "aws-amplify";
+import outputs from "../amplify_outputs.json";
+import "./App.css";
+
+Amplify.configure(outputs);
+
+const client = generateClient<Schema>();
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [ingredients, setIngredients] = useState("");
+  const [recipe, setRecipe] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const onSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+
+    try {
+      const ingredientList = ingredients.split(",").map((i) => i.trim());
+      const { data, errors } = await client.queries.askBedrock({
+        ingredients: ingredientList,
+      });
+
+      if (!errors && data) {
+        setRecipe(data.body || "No recipe generated.");
+      } else {
+        console.error(errors);
+        setRecipe("Error generating recipe.");
+      }
+    } catch (e) {
+      console.error(e);
+      setRecipe("An error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
+    <div className="app-container">
+      <div className="header-container">
+        <h1 className="main-header">
+          Meet Your Personal <span className="highlight">Recipe AI</span>
+        </h1>
+        <p className="description">
+          Simply type a few ingredients using the format ingredient1,
+          ingredient2, etc., and Recipe AI will generate an all-new recipe
+          on demand...
         </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+      <form onSubmit={onSubmit} className="form-container">
+        <div className="search-container">
+          <input
+            type="text"
+            className="wide-input"
+            id="ingredients"
+            name="ingredients"
+            placeholder="Ingredient1, Ingredient2, Ingredient3,...etc"
+            value={ingredients}
+            onChange={(e) => setIngredients(e.target.value)}
+          />
+          <button type="submit" className="search-button">
+            Generate
+          </button>
+        </div>
+      </form>
+      <div className="result-container">
+        {loading ? (
+          <div className="loader-container">
+            <p>Loading...</p>
+          </div>
+        ) : (
+          recipe && (
+            <div className="result">
+              <p>{recipe}</p>
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
 }
 
-export default App
+export default App;

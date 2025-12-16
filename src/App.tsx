@@ -1,4 +1,4 @@
-import { useState, FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../amplify/data/resource";
 import { Amplify } from "aws-amplify";
@@ -20,8 +20,12 @@ function App() {
 
     try {
       const ingredientList = ingredients.split(",").map((i) => i.trim());
+      
+      // FIX ADDED HERE: explicitly use userPool auth
       const { data, errors } = await client.queries.askBedrock({
         ingredients: ingredientList,
+      }, {
+        authMode: 'userPool'
       });
 
       if (!errors && data) {
